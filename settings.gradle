@@ -1,4 +1,3 @@
-
 pluginManagement {
     repositories {
         google()
@@ -9,4 +8,4 @@ pluginManagement {
     }
 }
 
-include ':server', ':app'
+include ':server', ':app', "scrcpy-api"

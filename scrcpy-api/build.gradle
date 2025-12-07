@@ -1,11 +1,10 @@
-apply plugin: 'com.android.application'
+apply plugin: 'com.android.library'
 android {
-    namespace 'org.server.scrcpy'
+    namespace 'com.genymobile.scrcpy'
 
     compileSdk = 36
     defaultConfig {
-        applicationId "org.server.scrcpy"
-        minSdkVersion 25
+        minSdkVersion 23
         targetSdkVersion 35
         versionCode 3
         versionName "1.2"
@@ -22,11 +21,8 @@ android {
             minifyEnabled false
         }
     }
-
 }
 
 dependencies {
-    implementation project(":scrcpy-api")
-
     testImplementation 'junit:junit:4.13.2'
 }

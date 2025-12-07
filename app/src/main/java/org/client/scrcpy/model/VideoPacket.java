@@ -49,6 +49,26 @@ public class VideoPacket extends MediaPacket {
         return videoPacket;
     }
 
+    public static VideoPacket parsePts(long pts) {
+        final long PACKET_FLAG_CONFIG = 1L << 63;
+        final long PACKET_FLAG_KEY_FRAME = 1L << 62;
+        VideoPacket videoPacket = new VideoPacket();
+
+        videoPacket.type = Type.VIDEO;
+
+        if (pts == PACKET_FLAG_CONFIG) {
+            videoPacket.flag = Flag.CONFIG;
+        } else if ((pts & PACKET_FLAG_KEY_FRAME) != 0) {
+            videoPacket.flag = Flag.KEY_FRAME;
+            pts &= ~PACKET_FLAG_KEY_FRAME;
+        } else {
+            videoPacket.flag = Flag.FRAME;
+        }
+        videoPacket.presentationTimeStamp = pts;
+
+        return videoPacket;
+    }
+
     public static VideoPacket readHead(byte[] values) {
         VideoPacket videoPacket = new VideoPacket();
 
@@ -71,7 +91,7 @@ public class VideoPacket extends MediaPacket {
     }
 
     public static int getHeadLen(){
-        return 10;
+        return 0;
     }
 
     // create byte array

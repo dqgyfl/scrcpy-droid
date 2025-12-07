@@ -49,6 +49,26 @@ public class AudioPacket extends MediaPacket {
         return videoPacket;
     }
 
+    public static AudioPacket parsePts(long pts) {
+        final long PACKET_FLAG_CONFIG = 1L << 63;
+        final long PACKET_FLAG_KEY_FRAME = 1L << 62;
+        AudioPacket videoPacket = new AudioPacket();
+
+        videoPacket.type = Type.VIDEO;
+
+        if (pts == PACKET_FLAG_CONFIG) {
+            videoPacket.flag = AudioPacket.Flag.CONFIG;
+        } else if ((pts & PACKET_FLAG_KEY_FRAME) != 0) {
+            videoPacket.flag = AudioPacket.Flag.KEY_FRAME;
+            pts &= ~PACKET_FLAG_KEY_FRAME;
+        } else {
+            videoPacket.flag = AudioPacket.Flag.FRAME;
+        }
+        videoPacket.presentationTimeStamp = pts;
+
+        return videoPacket;
+    }
+
     public static AudioPacket readHead(byte[] values) {
         AudioPacket videoPacket = new AudioPacket();
 
@@ -71,7 +91,7 @@ public class AudioPacket extends MediaPacket {
     }
 
     public static int getHeadLen(){
-        return 10;
+        return 0;
     }
 
     // create byte array

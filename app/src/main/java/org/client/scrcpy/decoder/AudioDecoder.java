@@ -1,17 +1,15 @@
 package org.client.scrcpy.decoder;
 
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-import android.media.MediaCodec;
-import android.media.MediaFormat;
+import android.media.*;
 import android.os.Build;
-import android.util.Log;
-import android.view.Surface;
-
+import com.genymobile.scrcpy.Options;
+import com.genymobile.scrcpy.util.CodecOption;
+import com.genymobile.scrcpy.util.CodecUtils;
+import com.genymobile.scrcpy.util.Ln;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AudioDecoder {
@@ -37,9 +35,9 @@ public class AudioDecoder {
         }
     }
 
-    public void configure(byte[] data) {
+    public void configure(byte[] data, Options options) {
         if (mWorker != null) {
-            mWorker.configure(data);
+            mWorker.configure(data, options);
         }
     }
 
@@ -77,7 +75,26 @@ public class AudioDecoder {
             mIsRunning.set(isRunning);
         }
 
-        private void configure(byte[] data) {
+        private MediaFormat createFormat(String mimeType, int bitRate, List<CodecOption> codecOptions) {
+            MediaFormat format = new MediaFormat();
+            format.setString(MediaFormat.KEY_MIME, mimeType);
+            format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
+            format.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 2);
+            format.setInteger(MediaFormat.KEY_SAMPLE_RATE, SAMPLE_RATE);
+
+            if (codecOptions != null) {
+                for (CodecOption option : codecOptions) {
+                    String key = option.getKey();
+                    Object value = option.getValue();
+                    CodecUtils.setCodecOption(format, key, value);
+                    Ln.d("Audio codec option set: " + key + " (" + value.getClass().getSimpleName() + ") = " + value);
+                }
+            }
+
+            return format;
+        }
+
+        private void configure(byte[] data, Options options) {
             if (mIsConfigured.get()) {
                 mIsConfigured.set(false);
                 if (mCodec != null) {
@@ -87,12 +104,13 @@ public class AudioDecoder {
                     audioTrack.stop();
                 }
             }
-            MediaFormat format = MediaFormat.createAudioFormat(MIMETYPE_AUDIO_AAC, SAMPLE_RATE, 2);
+//            MediaFormat format = MediaFormat.createAudioFormat(options.getAudioCodec().getMimeType(), options.getAudioBitRate(), 2);
+            MediaFormat format = createFormat(options.getAudioCodec().getMimeType(),options.getAudioBitRate(),  options.getAudioCodecOptions());
             // 设置比特率
-            format.setInteger(MediaFormat.KEY_BIT_RATE, 128000);
+//            format.setInteger(MediaFormat.KEY_BIT_RATE, 128000);
             // adts 0
             // format.setInteger(MediaFormat.KEY_IS_ADTS, 1);
-            format.setByteBuffer("csd-0", ByteBuffer.wrap(data));
+//            format.setByteBuffer("csd-0", ByteBuffer.wrap(data));
 
             try {
                 mCodec = MediaCodec.createDecoderByType(MIMETYPE_AUDIO_AAC);
