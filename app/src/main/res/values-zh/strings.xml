@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">安卓控</string>
 
+    <string name="label_scrcpyx_mgr_ip">Scrcpyx Mgr Addr</string>
     <string name="label_server_ip">手机的IP地址,例如: 192.168.0.73</string>
     <string name="label_video_resolution">传输分辨率</string>
     <string name="delay_control">延迟控制</string>

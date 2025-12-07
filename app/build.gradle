@@ -2,25 +2,49 @@ evaluationDependsOn(':server')
 
 apply plugin: 'com.android.application'
 
+apply plugin: 'com.google.protobuf'
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.25.8"
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.77.0'
+        }
+    }
+
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                java { option 'lite' }
+            }
+            task.plugins {
+                grpc { option 'lite' }
+            }
+        }
+    }
+}
+
 android {
     namespace 'org.client.scrcpy'
     flavorDimensions = ["default"]
 
-    compileSdkVersion 31
+    compileSdk = 36
     defaultConfig {
-        minSdkVersion 21
-        targetSdkVersion 31
+        minSdkVersion 24
+        targetSdkVersion 35
         versionCode 9
         versionName "1.1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-        setProperty("archivesBaseName", "scrcpy")
+//        setProperty("archivesBaseName", "scrcpy")
     }
     signingConfigs {
         release {
             storeFile file("scrcpy.jks")
 
             def properties = new Properties()
-            if (file("../local.properties").exists()){
+            if (file("../local.properties").exists()) {
                 file("../local.properties").withInputStream { stream ->
                     properties.load(stream)
                 }
@@ -45,16 +69,40 @@ android {
         }
     }
 
-
-    tasks.whenTaskAdded { task ->
+    tasks.register('copyServer', Copy) {
         def buildType = gradle.startParameter.taskNames.any { it.endsWith('Release') } ? 'Release' : 'Debug'
+        dependsOn 'deleteServer'
+        dependsOn ":server:assemble${buildType}"
 
-        task.dependsOn ":server:assemble${buildType}"
-        task.dependsOn ":server:copyServer"
+        def release_file = '../server/build/outputs/apk/release/server-release-unsigned.apk'
+        def debug_file = '../server/build/outputs/apk/debug/server-debug.apk'
+        def file_dest = '../app/src/main/assets/'
+
+        if (buildType == "Debug") {
+            from file(debug_file)
+            into file(file_dest)
+        } else {
+            from file(release_file)
+            into file(file_dest)
+        }
+        rename { fileName ->
+            'scrcpy-server.jar'
+        }
     }
+    tasks.register('deleteServer', Delete) {
+        delete "../app/src/main/assets/scrcpy-server.jar"
+    }
+
+    preBuild.dependsOn copyServer
 }
 
 dependencies {
+    implementation project(":scrcpy-api")
+
+    implementation 'io.grpc:grpc-okhttp:1.77.0'
+    implementation 'io.grpc:grpc-protobuf-lite:1.77.0'
+    implementation 'io.grpc:grpc-stub:1.77.0'
+
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'

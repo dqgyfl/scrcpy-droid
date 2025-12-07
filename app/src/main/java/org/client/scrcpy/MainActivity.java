@@ -76,6 +76,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     private int delayControl;
     private Context context;
     private String serverAdr = null;
+    private String scrcpyxAddr = null;
     private SurfaceView surfaceView;
     private Surface surface;
     private Scrcpy scrcpy;
@@ -96,7 +97,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 if (!Progress.isShowing()) {
                     Progress.showDialog(MainActivity.this, getString(R.string.please_wait));
                 }
-                scrcpy.start(surface, Scrcpy.LOCAL_IP + ":" + Scrcpy.LOCAL_FORWART_PORT,
+                scrcpy.start(surface, scrcpyxAddr,
                         screenHeight, screenWidth, delayControl);
                 ThreadUtils.workPost(() -> {
                     int count = 50;
@@ -322,6 +323,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 
 
     public void get_saved_preferences() {
+        final EditText scrcpyxAddr = findViewById(R.id.scrcpyx_addr);
+        scrcpyxAddr.setText(PreUtils.get(context, Constant.SCRCPYX_ADDR, "127.0.0.1:50051"));
+
         final EditText editTextServerHost = findViewById(R.id.editText_server_host);
         final Switch aSwitch0 = findViewById(R.id.switch0);
         final Switch aSwitch1 = findViewById(R.id.switch1);
@@ -458,6 +462,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     }
 
     private void getAttributes() {
+        final EditText scrcpyAddr = findViewById(R.id.scrcpyx_addr);
+        this.scrcpyxAddr = scrcpyAddr.getText().toString();
+        PreUtils.put(context, Constant.SCRCPYX_ADDR, this.scrcpyxAddr);
 
         final EditText editTextServerHost = findViewById(R.id.editText_server_host);
         serverAdr = editTextServerHost.getText().toString();
@@ -768,8 +775,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 }
                 if (sendCommands.SendAdbCommands(context, serverHost,
                         serverPort,
-                        localForwardPort,
-                        Scrcpy.LOCAL_IP,
+                        Integer.parseInt(Util.getServerHostAndPort(scrcpyxAddr)[1]),
+                        Util.getServerHostAndPort(scrcpyxAddr)[0],
                         videoBitrate, Math.max(screenHeight, screenWidth)) == 0) {
                     ThreadUtils.post(() -> {
                         if (!MainActivity.this.isFinishing()) {

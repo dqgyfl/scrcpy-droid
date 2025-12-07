@@ -9,7 +9,7 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Surface;
 
-import com.anonuymous.scrcypx.mgr.v1.ProxyClient;
+import com.anonymous.scrcypx.mgr.v1.ProxyClient;
 import com.genymobile.scrcpy.Options;
 import com.genymobile.scrcpy.control.ControlMessage;
 import com.genymobile.scrcpy.device.Position;
@@ -133,7 +133,7 @@ public class Scrcpy extends Service {
                     SimpleChannel ch = new SimpleChannel();
                     ch.chName = s[i];
                     ch.chType = i;
-                    ch.socket = ProxyClient.connect("192.168.0.77", 4430, SendCommands.session_id);
+                    ch.socket = ProxyClient.connect(serverHost, 4430, SendCommands.session_id);
                     chs.add(ch);
 //                    socket.connect(new InetSocketAddress(serverHost, serverPort), 5000);
                     ch.in = new DataInputStream(ch.socket.getInputStream());
@@ -147,7 +147,7 @@ public class Scrcpy extends Service {
                 Log.d("Scrcpy", "connected to : " + ascii);
 
                 chs.get(2).out.write(ControlCodec.encode(ControlMessage.createStartApp("com.android.browser")));
-                Thread.sleep(delay);
+                Thread.sleep(3 * delay);
 
                 // move this into video handling
                 socket_status = true;

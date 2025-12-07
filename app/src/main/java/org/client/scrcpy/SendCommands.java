@@ -5,17 +5,16 @@ import android.content.Context;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.anonymous.scrcypx.mgr.v1.MgrClient;
+import io.grpc.StatusException;
 import org.client.scrcpy.utils.ThreadUtils;
+import scrcpyx.mgr.v1.ScrcpyxMgrServiceGrpc;
+import scrcpyx.mgr.v1.StartScrcpyServerRequest;
+import scrcpyx.mgr.v1.StartScrcpyServerResponse;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.ConnectException;
-import java.net.NoRouteToHostException;
-import java.net.Socket;
-import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
+import java.util.stream.Stream;
 
 public class SendCommands {
 
@@ -31,10 +30,52 @@ public class SendCommands {
         return this.SendAdbCommands(context, null, ip, port, forwardport, localip, bitrate, size);
     }
 
+    public static String[] scrcpyCmd = new String[]{
+//            "1.2",
+//                "audio=false",
+//                "control=false",
+            "tunnel_forward=true",
+            "send_dummy_byte=false",
+            "video_codec=h264",
+            "audio_codec=aac",
+            "clipboard_autosync=false",
+//            "new_display=854x480/148"
+            "new_display=1280x720/240"
+    };
+
+    public static volatile String session_id = null;
+
     public int SendAdbCommands(Context context, final byte[] fileBase64, final String ip, int port, int forwardport, String localip, int bitrate, int size) {
+        ScrcpyxMgrServiceGrpc.ScrcpyxMgrServiceBlockingV2Stub client = ScrcpyxMgrServiceGrpc.newBlockingV2Stub(
+                MgrClient.connect(localip, forwardport)
+        );
+        try {
+            StartScrcpyServerResponse rsp = client.startScrcpyServer(StartScrcpyServerRequest.newBuilder()
+                    .setDid(ip + ":" + port)
+//                    .addAllArgs(List.of(
+//                            "tunnel_forward=true",
+//                            "send_dummy_byte=false",
+//                            "video_codec=h264",
+//                            "audio_codec=aac",
+//                            "clipboard_autosync=false"
+//                    ))
+                    .addAllArgs(Arrays.asList(scrcpyCmd))
+                    .build());
+            session_id = rsp.getSessionId();
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+            }
+        } catch (StatusException e) {
+            return 2;
+        }
+        return 0;
+    }
+
+    public int SendAdbCommands0(Context context, final byte[] fileBase64, final String ip, int port, int forwardport, String localip, int bitrate, int size) {
         this.context = context;
         status = 1;
-        String[] commands = new String[]{
+        String[] commands2 = new String[]{
                 "-s", ip + ":" + port,
                 "shell",
                 " CLASSPATH=/data/local/tmp/scrcpy-server.jar",
@@ -45,6 +86,15 @@ public class SendCommands {
                 Long.toString(size),
                 Long.toString(bitrate) + ";"
         };
+        String[] commands = Stream.concat(Stream.of(
+                        "-s", ip + ":" + port,
+                        "shell",
+                        "CLASSPATH=/data/local/tmp/scrcpy-server.jar",
+                        "app_process",
+                        "/",
+                        "com.genymobile.scrcpy.Server"),
+                Stream.of(scrcpyCmd)
+        ).toArray(String[]::new);
         ThreadUtils.execute(() -> {
             try {
                 // 新版的复制方式
@@ -87,8 +137,11 @@ public class SendCommands {
         return status;
     }
 
-
     private void newAdbServerStart(Context context, String ip, String localip, int port, int serverport, String[] command) {
+
+    }
+
+    private void newAdbServerStart0(Context context, String ip, String localip, int port, int serverport, String[] command) {
         App.adbCmd("connect", ip + ":" + port);
 
         Log.i("Scrcpy", "adb devices: " + App.adbCmd("devices"));
@@ -106,7 +159,8 @@ public class SendCommands {
         }
         // 开启本地端口 forward 转发
         Log.i("Scrcpy", "开启本地端口转发");
-        App.adbCmd("-s", ip + ":" + port, "forward", "tcp:" + serverport, "tcp:" + 7007);
+//        App.adbCmd("-s", ip + ":" + port, "forward", "tcp:" + serverport, "tcp:" + 7007);
+        App.adbCmd("-s", ip + ":" + port, "forward", "tcp:" + serverport, "localabstract:scrcpy");
 
         status = 0;
         // 执行启动命令

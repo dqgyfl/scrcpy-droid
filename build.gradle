@@ -7,10 +7,13 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.0.0'
+        classpath 'com.android.tools.build:gradle:8.12.3'
     }
 }
 
+plugins {
+    id 'com.google.protobuf' version '0.9.5' apply false
+}
 
 allprojects {
     repositories {

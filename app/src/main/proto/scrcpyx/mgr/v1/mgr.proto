@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+
+package scrcpyx.mgr.v1;
+
+option java_multiple_files = true;
+
+
+message StartScrcpyServerRequest {
+  string did = 1;
+  //  args to start the scrcpy server
+  repeated string args = 2;
+}
+
+message StartScrcpyServerResponse {
+  string session_id = 1;
+}
+
+service ScrcpyxMgrService {
+  rpc StartScrcpyServer(StartScrcpyServerRequest) returns (StartScrcpyServerResponse);
+}
