@@ -25,8 +25,19 @@ public class AudioDecoder {
 
     private void initAudioTrack() {
         int bufferSizeInBytes = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT);
-        audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, SAMPLE_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT,
-                bufferSizeInBytes, AudioTrack.MODE_STREAM);
+        audioTrack = new AudioTrack.Builder()
+                .setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build())
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .setAudioFormat(new AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(SAMPLE_RATE)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+                        .build())
+                .setBufferSizeInBytes(bufferSizeInBytes)
+                .build();
     }
 
     public void decodeSample(byte[] data, int offset, int size, long presentationTimeUs, int flags) {
@@ -105,12 +116,12 @@ public class AudioDecoder {
                 }
             }
 //            MediaFormat format = MediaFormat.createAudioFormat(options.getAudioCodec().getMimeType(), options.getAudioBitRate(), 2);
-            MediaFormat format = createFormat(options.getAudioCodec().getMimeType(),options.getAudioBitRate(),  options.getAudioCodecOptions());
+            MediaFormat format = createFormat(options.getAudioCodec().getMimeType(), options.getAudioBitRate(), options.getAudioCodecOptions());
             // 设置比特率
 //            format.setInteger(MediaFormat.KEY_BIT_RATE, 128000);
             // adts 0
             // format.setInteger(MediaFormat.KEY_IS_ADTS, 1);
-//            format.setByteBuffer("csd-0", ByteBuffer.wrap(data));
+            format.setByteBuffer("csd-0", ByteBuffer.wrap(data));
 
             try {
                 mCodec = MediaCodec.createDecoderByType(MIMETYPE_AUDIO_AAC);
@@ -120,6 +131,7 @@ public class AudioDecoder {
             mCodec.configure(format, null, null, 0);
             mCodec.start();
             mIsConfigured.set(true);
+
 
             // 初始化音频播放器
             initAudioTrack();
@@ -133,14 +145,7 @@ public class AudioDecoder {
             if (mIsConfigured.get() && mIsRunning.get()) {
                 int index = mCodec.dequeueInputBuffer(-1);
                 if (index >= 0) {
-                    ByteBuffer buffer;
-
-                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-                        buffer = mCodec.getInputBuffers()[index];
-                        buffer.clear();
-                    } else {
-                        buffer = mCodec.getInputBuffer(index);
-                    }
+                    ByteBuffer buffer = mCodec.getInputBuffer(index);
                     if (buffer != null) {
                         buffer.put(data, offset, size);
                         mCodec.queueInputBuffer(index, 0, size, presentationTimeUs, flags);

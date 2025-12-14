@@ -387,6 +387,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
         int targetDisplayId;
         if (displayData != null) {
             point = displayData.positionMapper.map(position);
+            Ln.e("display" + displayData.positionMapper.getVideoSize() + "AAAA" + position.getScreenSize() + "BBBB" + point);
             if (point == null) {
                 if (Ln.isEnabled(Ln.Level.VERBOSE)) {
                     Size eventSize = position.getScreenSize();
@@ -396,7 +397,9 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
                 return null;
             }
             targetDisplayId = displayData.virtualDisplayId;
+            Ln.e("display" + targetDisplayId);
         } else {
+            Ln.e("No display" + position.getPoint());
             // No display, use the raw coordinates
             point = position.getPoint();
             targetDisplayId = displayId;

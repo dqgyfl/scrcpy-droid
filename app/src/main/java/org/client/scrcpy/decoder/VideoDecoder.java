@@ -9,6 +9,7 @@ import android.view.Surface;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class VideoDecoder {
     private MediaCodec mCodec;
@@ -27,10 +28,16 @@ public class VideoDecoder {
         }
     }
 
+    public void getVideoSize(int[] size) {
+        if (mWorker != null) {
+            mWorker.getVideoSize(size);
+        }
+    }
 
-    public void start() {
+
+    public void start(AtomicInteger signal) {
         if (mWorker == null) {
-            mWorker = new Worker();
+            mWorker = new Worker(signal);
             mWorker.setRunning(true);
             mWorker.start();
         }
@@ -50,8 +57,10 @@ public class VideoDecoder {
     private class Worker extends Thread {
 
         private AtomicBoolean mIsRunning = new AtomicBoolean(false);
+        private AtomicInteger outputChangedSignal;
 
-        Worker() {
+        Worker(AtomicInteger outputChangedSignal) {
+            this.outputChangedSignal = outputChangedSignal;
         }
 
         private void setRunning(boolean isRunning) {
@@ -77,6 +86,14 @@ public class VideoDecoder {
             mCodec.configure(format, surface, null, 0);
             mCodec.start();
             mIsConfigured.set(true);
+        }
+
+        public void getVideoSize(int[] s) {
+            if (mIsConfigured.get() && mIsRunning.get()) {
+                MediaFormat outputFormat = mCodec.getOutputFormat();
+                s[0] = outputFormat.getInteger(MediaFormat.KEY_WIDTH);
+                s[1] = outputFormat.getInteger(MediaFormat.KEY_HEIGHT);
+            }
         }
 
 
@@ -108,6 +125,9 @@ public class VideoDecoder {
                 while (mIsRunning.get()) {
                     if (mIsConfigured.get()) {
                         int index = mCodec.dequeueOutputBuffer(info, 0);
+                        if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                            outputChangedSignal.incrementAndGet();
+                        }
                         if (index >= 0) {
                             // setting true is telling system to render frame onto Surface
                             mCodec.releaseOutputBuffer(index, true);

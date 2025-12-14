@@ -5,7 +5,6 @@ package scrcpyx.mgr.v1;
 
 option java_multiple_files = true;
 
-
 message StartScrcpyServerRequest {
   string did = 1;
   //  args to start the scrcpy server
@@ -16,6 +15,69 @@ message StartScrcpyServerResponse {
   string session_id = 1;
 }
 
+enum AppFilter {
+  UNKNOWN = 0;
+  ENABLED = 1;        // -e
+  DISABLED = 2;       // -d
+  SYSTEM = 3;         // -s
+  THIRD_PARTY = 4;    // -3
+  APEX_ONLY = 5;      // --apex-only
+}
+
+//  list packages [-f] [-d] [-e] [-s] [-3] [-i] [-l] [-u] [-U]
+//      [--show-versioncode] [--apex-only] [--uid UID] [--user USER_ID] [FILTER]
+//    Prints all packages; optionally only those whose name contains
+//    the text in FILTER.  Options are:
+//      -f: see their associated file
+//      -a: all known packages (but excluding APEXes)
+//      -d: filter to only show disabled packages
+//      -e: filter to only show enabled packages
+//      -s: filter to only show system packages
+//      -3: filter to only show third party packages
+//      -i: see the installer for the packages
+//      -l: ignored (used for compatibility with older releases)
+//      -U: also show the package UID
+//      -u: also include uninstalled packages
+//      --show-versioncode: also show the version code
+//      --apex-only: only show APEX packages
+//      --uid UID: filter to only show packages with the given UID
+//      --user USER_ID: only list packages belonging to the given user
+// Request to list Android apps installed on the device
+message ListAppsRequest {
+  string did = 1; // Device ID
+  // default only show third party app
+  repeated AppFilter filters = 2;
+  string user_id = 3;
+}
+
+message AppInfo {
+  string package_name = 1;
+  optional string  package_uid = 3;
+}
+
+message ListAppsResponse {
+  repeated AppInfo apps = 1; // List of app package names
+}
+
+// Request to list device displays
+message ListDevicesRequest {
+}
+
+message DeviceInfo {
+  // Device ID
+  string did = 1;
+  string product = 2;
+  string model = 3;
+  string device = 4;
+}
+
+message ListDevicesResponse {
+  repeated DeviceInfo devices = 1;
+}
+
+
 service ScrcpyxMgrService {
   rpc StartScrcpyServer(StartScrcpyServerRequest) returns (StartScrcpyServerResponse);
+  rpc ListApps(ListAppsRequest) returns (ListAppsResponse);
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
 }

@@ -52,21 +52,21 @@ public class AudioPacket extends MediaPacket {
     public static AudioPacket parsePts(long pts) {
         final long PACKET_FLAG_CONFIG = 1L << 63;
         final long PACKET_FLAG_KEY_FRAME = 1L << 62;
-        AudioPacket videoPacket = new AudioPacket();
+        AudioPacket audioPacket = new AudioPacket();
 
-        videoPacket.type = Type.VIDEO;
+        audioPacket.type = Type.AUDIO;
 
         if (pts == PACKET_FLAG_CONFIG) {
-            videoPacket.flag = AudioPacket.Flag.CONFIG;
+            audioPacket.flag = AudioPacket.Flag.CONFIG;
         } else if ((pts & PACKET_FLAG_KEY_FRAME) != 0) {
-            videoPacket.flag = AudioPacket.Flag.KEY_FRAME;
+            audioPacket.flag = AudioPacket.Flag.KEY_FRAME;
             pts &= ~PACKET_FLAG_KEY_FRAME;
         } else {
-            videoPacket.flag = AudioPacket.Flag.FRAME;
+            audioPacket.flag = AudioPacket.Flag.FRAME;
         }
-        videoPacket.presentationTimeStamp = pts;
+        audioPacket.presentationTimeStamp = pts;
 
-        return videoPacket;
+        return audioPacket;
     }
 
     public static AudioPacket readHead(byte[] values) {

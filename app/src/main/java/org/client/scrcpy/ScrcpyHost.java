@@ -10,19 +10,18 @@ import android.util.Base64;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.Surface;
-import android.view.SurfaceView;
 import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.Collections;
 import java.util.Enumeration;
 
 public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
@@ -59,7 +58,7 @@ public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
             scrcpy.setServiceCallbacks(ScrcpyHost.this);
             serviceBound = true;
             if (first_time) {
-                scrcpy.start(surface, serverAdr, screenHeight, screenWidth, 50);
+                scrcpy.start(surface, serverAdr, screenHeight, screenWidth, 50, null, null);
                 int count = 100;
                 while (count != 0 && !scrcpy.check_socket_connection()) {
                     count--;
@@ -155,7 +154,7 @@ public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
                     serverPort,
                     localForwardPort,
                     Scrcpy.LOCAL_IP,
-                    videoBitrate, Math.max(screenHeight, screenWidth)) == 0) {
+                    videoBitrate, Math.max(screenHeight, screenWidth), Collections.emptyList()) == 0) {
                 start_screen_copy_magic();
             } else {
                 Toast.makeText(context, "Network OR ADB connection failed", Toast.LENGTH_SHORT).show();

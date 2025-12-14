@@ -113,6 +113,138 @@
             </LinearLayout>
 
             <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginTop="5dp"
+                    android:layout_marginRight="10dp"
+                    android:background="#323540"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="5dp">
+
+                <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingTop="5dp"
+                        android:text="@string/label_server_ip"
+                        android:textAppearance="@android:style/TextAppearance"
+                        android:textColor="@color/white" />
+
+                <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="20dp"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginRight="20dp"
+                        android:background="@drawable/edit_background"
+                        android:orientation="horizontal">
+
+                    <EditText
+                            android:id="@+id/editText_server_host"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:background="@null"
+                            android:gravity="center"
+                            android:importantForAutofill="no"
+                            android:inputType="text"
+                            android:minHeight="50dp"
+                            android:paddingLeft="5dp"
+                            android:paddingRight="5dp"
+                            android:textColor="@color/white"
+                            android:textColorHint="#A8AAB5"
+                            tools:ignore="LabelFor,SpeakableTextPresentCheck" />
+
+                    <FrameLayout
+                            android:id="@+id/history_list"
+                            android:layout_width="40dp"
+                            android:layout_height="50dp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_margin="2dp"
+                            android:background="@drawable/btn_selector">
+
+                        <ImageView
+                                android:layout_width="15dp"
+                                android:layout_height="15dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/down" />
+                    </FrameLayout>
+
+                </LinearLayout>
+
+
+            </LinearLayout>
+
+            <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginTop="5dp"
+                    android:layout_marginRight="10dp"
+                    android:background="#323540"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="5dp">
+
+                <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingTop="5dp"
+                        android:text="app"
+                        android:textAppearance="@android:style/TextAppearance"
+                        android:textColor="@color/white" />
+
+                <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="20dp"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginRight="20dp"
+                        android:background="@drawable/edit_background"
+                        android:orientation="horizontal">
+
+                    <EditText
+                            android:id="@+id/start_app"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:background="@null"
+                            android:gravity="center"
+                            android:importantForAutofill="no"
+                            android:inputType="text"
+                            android:minHeight="50dp"
+                            android:paddingLeft="5dp"
+                            android:paddingRight="5dp"
+                            android:textColor="@color/white"
+                            android:textColorHint="#A8AAB5"
+                            tools:ignore="LabelFor,SpeakableTextPresentCheck" />
+
+                    <FrameLayout
+                            android:id="@+id/start_app_history"
+                            android:layout_width="40dp"
+                            android:layout_height="50dp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_margin="2dp"
+                            android:background="@drawable/btn_selector">
+
+                        <ImageView
+                                android:layout_width="15dp"
+                                android:layout_height="15dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/down" />
+                    </FrameLayout>
+
+                </LinearLayout>
+
+
+            </LinearLayout>
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="10dp"
@@ -129,7 +261,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:paddingTop="5dp"
-                    android:text="@string/label_server_ip"
+                    android:text="scrcpy server args"
                     android:textAppearance="@android:style/TextAppearance"
                     android:textColor="@color/white" />
 
@@ -143,7 +275,7 @@
                     android:orientation="horizontal">
 
                     <EditText
-                        android:id="@+id/editText_server_host"
+                        android:id="@+id/scrcpy_args"
                         android:layout_width="0dp"
                         android:layout_height="match_parent"
                         android:layout_weight="1"
@@ -159,7 +291,7 @@
                         tools:ignore="LabelFor,SpeakableTextPresentCheck" />
 
                     <FrameLayout
-                        android:id="@+id/history_list"
+                        android:id="@+id/scrcpy_args_history"
                         android:layout_width="40dp"
                         android:layout_height="50dp"
                         android:layout_gravity="center_vertical"

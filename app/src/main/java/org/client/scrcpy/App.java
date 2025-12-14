@@ -67,8 +67,8 @@ public class App extends Application implements Application.ActivityLifecycleCal
         ThreadUtils.execute(() -> {
             // 启动 adb 服务
             Log.i("Scrcpy", "start adb server ...");
-            adbCmd("kill-server");
-            adbCmd("start-server");
+//            adbCmd("kill-server");
+//            adbCmd("start-server");
             // 启动完毕，重置为false，使其下次可以被重新调用
             startAdbRun = false;
         });
@@ -87,6 +87,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
         env.put("HOME", mContext.getFilesDir().getAbsolutePath());
         env.put("TMPDIR", mContext.getCacheDir().getAbsolutePath());
         env.put("ANDROID_ADB_SERVER_PORT", "5137");
+        env.put("ADB_TRACE", "all");
 
         return ExecUtil.adbCommend(cmds, env, mContext.getFilesDir());
     }

@@ -8,12 +8,12 @@ import android.util.Log;
 import com.anonymous.scrcypx.mgr.v1.MgrClient;
 import io.grpc.StatusException;
 import org.client.scrcpy.utils.ThreadUtils;
-import scrcpyx.mgr.v1.ScrcpyxMgrServiceGrpc;
 import scrcpyx.mgr.v1.StartScrcpyServerRequest;
 import scrcpyx.mgr.v1.StartScrcpyServerResponse;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Stream;
 
 public class SendCommands {
@@ -26,46 +26,34 @@ public class SendCommands {
 
     }
 
-    public int SendAdbCommands(Context context, final String ip, int port, int forwardport, String localip, int bitrate, int size) {
-        return this.SendAdbCommands(context, null, ip, port, forwardport, localip, bitrate, size);
-    }
+//    public int SendAdbCommands(Context context, final String ip, int port, int forwardport, String localip, int bitrate, int size) {
+//        return this.SendAdbCommands(context, null, ip, port, forwardport, localip, bitrate, size);
+//    }
 
-    public static String[] scrcpyCmd = new String[]{
-//            "1.2",
-//                "audio=false",
+    public static List<String> scrcpyCmd = List.of(
+            "3.3.3",
+//            "audio=false",
 //                "control=false",
             "tunnel_forward=true",
             "send_dummy_byte=false",
             "video_codec=h264",
             "audio_codec=aac",
             "clipboard_autosync=false",
+            "power_off_on_close=true"
+//            "max_size=1280",
 //            "new_display=854x480/148"
-            "new_display=1280x720/240"
-    };
+    );
 
     public static volatile String session_id = null;
 
-    public int SendAdbCommands(Context context, final byte[] fileBase64, final String ip, int port, int forwardport, String localip, int bitrate, int size) {
-        ScrcpyxMgrServiceGrpc.ScrcpyxMgrServiceBlockingV2Stub client = ScrcpyxMgrServiceGrpc.newBlockingV2Stub(
-                MgrClient.connect(localip, forwardport)
-        );
+    public int SendAdbCommands(Context context, final byte[] fileBase64, final String ip, int port, int forwardport, String localip, int bitrate, int size, List<String> args) {
+        // todo: move this to Scrcpy service
         try {
-            StartScrcpyServerResponse rsp = client.startScrcpyServer(StartScrcpyServerRequest.newBuilder()
-                    .setDid(ip + ":" + port)
-//                    .addAllArgs(List.of(
-//                            "tunnel_forward=true",
-//                            "send_dummy_byte=false",
-//                            "video_codec=h264",
-//                            "audio_codec=aac",
-//                            "clipboard_autosync=false"
-//                    ))
-                    .addAllArgs(Arrays.asList(scrcpyCmd))
+            StartScrcpyServerResponse rsp = MgrClient.getClient().startScrcpyServer(StartScrcpyServerRequest.newBuilder()
+                    .setDid(ip)
+                    .addAllArgs(args)
                     .build());
             session_id = rsp.getSessionId();
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-            }
         } catch (StatusException e) {
             return 2;
         }

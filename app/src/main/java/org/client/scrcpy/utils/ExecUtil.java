@@ -73,6 +73,7 @@ public class ExecUtil {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(cmd).directory(workDir);
             Map<String, String> envs = processBuilder.environment();
+            envs.put("ADB_SERVER_SOCKET", "tcp:192.168.0.77:5037");
             for (String s : env.keySet()) {
                 envs.put(s, env.get(s));
             }
