@@ -1,4 +1,4 @@
-package com.anonymous.scrcypx.mgr.v1;
+package com.anonymous.scrcpyx.mgr;
 
 import io.grpc.ManagedChannel;
 import io.grpc.okhttp.OkHttpChannelBuilder;

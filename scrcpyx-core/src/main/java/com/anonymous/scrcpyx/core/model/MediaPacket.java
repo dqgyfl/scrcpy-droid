@@ -1,4 +1,4 @@
-package org.client.scrcpy.model;
+package com.anonymous.scrcpyx.core.model;
 
 /**
  * Created by Alexandr Golovach on 27.06.16.

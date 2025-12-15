@@ -1,4 +1,4 @@
-package com.anonymous.scrcypx.mgr.v1;
+package com.anonymous.scrcpyx.mgr;
 
 /**
  * @author VV

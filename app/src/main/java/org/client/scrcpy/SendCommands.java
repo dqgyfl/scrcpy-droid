@@ -5,14 +5,9 @@ import android.content.Context;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.anonymous.scrcypx.mgr.v1.MgrClient;
-import io.grpc.StatusException;
 import org.client.scrcpy.utils.ThreadUtils;
-import scrcpyx.mgr.v1.StartScrcpyServerRequest;
-import scrcpyx.mgr.v1.StartScrcpyServerResponse;
 
 import java.io.File;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -47,16 +42,6 @@ public class SendCommands {
     public static volatile String session_id = null;
 
     public int SendAdbCommands(Context context, final byte[] fileBase64, final String ip, int port, int forwardport, String localip, int bitrate, int size, List<String> args) {
-        // todo: move this to Scrcpy service
-        try {
-            StartScrcpyServerResponse rsp = MgrClient.getClient().startScrcpyServer(StartScrcpyServerRequest.newBuilder()
-                    .setDid(ip)
-                    .addAllArgs(args)
-                    .build());
-            session_id = rsp.getSessionId();
-        } catch (StatusException e) {
-            return 2;
-        }
         return 0;
     }
 

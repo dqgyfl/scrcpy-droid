@@ -8,4 +8,4 @@ pluginManagement {
     }
 }
 
-include ':server', ':app', "scrcpy-api"
+include ':server', ':app', "scrcpy-api", "scrcpyx-core"

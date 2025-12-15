@@ -8,19 +8,15 @@ import android.content.res.AssetManager;
 import android.os.IBinder;
 import android.util.Base64;
 import android.util.Log;
-import android.view.MotionEvent;
 import android.view.Surface;
 import android.widget.Toast;
+import com.anonymous.scrcpyx.Scrcpy;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
+import java.net.*;
 import java.util.Collections;
 import java.util.Enumeration;
 
@@ -55,12 +51,11 @@ public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
             scrcpy = ((Scrcpy.MyServiceBinder) iBinder).getService();
-            scrcpy.setServiceCallbacks(ScrcpyHost.this);
             serviceBound = true;
             if (first_time) {
-                scrcpy.start(surface, serverAdr, screenHeight, screenWidth, 50, null, null);
+//                scrcpy.start(surface, serverAdr, serverAdr, null, null);
                 int count = 100;
-                while (count != 0 && !scrcpy.check_socket_connection()) {
+                while (count != 0 && !scrcpy.isConnected()) {
                     count--;
                     try {
                         Thread.sleep(100);
@@ -70,22 +65,22 @@ public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
                 }
                 if (count == 0) {
                     if (serviceBound) {
-                        scrcpy.StopService();
+                        scrcpy.stop();
                         context.unbindService(serviceConnection);
                         serviceBound = false;
 
                     }
                     Toast.makeText(context, "Connection Timed out 1", Toast.LENGTH_SHORT).show();
                 } else {
-                    int[] rem_res = scrcpy.get_remote_device_resolution();
-                    remote_device_height = rem_res[1];
-                    remote_device_width = rem_res[0];
-                    first_time = false;
-                    Log.d("fuck", "onServiceConnected: " + remote_device_height + "|" + remote_device_width);
-                    connectCallBack.onConnect(Math.min(remote_device_width, remote_device_height), Math.max(remote_device_width, remote_device_height));
+//                    int[] rem_res = scrcpy.get_remote_device_resolution();
+//                    remote_device_height = rem_res[1];
+//                    remote_device_width = rem_res[0];
+//                    first_time = false;
+//                    Log.d("fuck", "onServiceConnected: " + remote_device_height + "|" + remote_device_width);
+//                    connectCallBack.onConnect(Math.min(remote_device_width, remote_device_height), Math.max(remote_device_width, remote_device_height));
                 }
             } else {
-                scrcpy.setParms(surface, screenWidth, screenHeight);
+                scrcpy.attachSurface(surface);
             }
         }
 
@@ -139,7 +134,7 @@ public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
         if (!serverAdr.isEmpty()) {
             String serverHost;
             int serverPort = 5555;
-            int localForwardPort = Scrcpy.LOCAL_FORWART_PORT;
+            int localForwardPort = 7000;
             if (serverAdr.contains(":")) {
                 serverHost = serverAdr.split(":")[0];
                 try {
@@ -153,7 +148,7 @@ public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
             if (sendCommands.SendAdbCommands(context, fileBase64, serverHost,
                     serverPort,
                     localForwardPort,
-                    Scrcpy.LOCAL_IP,
+                    "127.0.0.1",
                     videoBitrate, Math.max(screenHeight, screenWidth), Collections.emptyList()) == 0) {
                 start_screen_copy_magic();
             } else {
@@ -206,22 +201,18 @@ public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
         return null;
     }
 
-    public boolean touch(MotionEvent motionEvent, int surfaceW, int surfaceH) {
-        return scrcpy.touchevent(motionEvent, false, surfaceW, surfaceH);
-    }
-
     public void keyEvent(int keyCode) {
-        scrcpy.sendKeyevent(keyCode);
+        scrcpy.sendKeyEvent(keyCode);
     }
 
 
     @Override
     public void loadNewRotation() {
         if (first_time) {
-            int[] rem_res = scrcpy.get_remote_device_resolution();
-            remote_device_height = rem_res[1];
-            remote_device_width = rem_res[0];
-            first_time = false;
+//            int[] rem_res = scrcpy.get_remote_device_resolution();
+//            remote_device_height = rem_res[1];
+//            remote_device_width = rem_res[0];
+//            first_time = false;
         }
         //TODO
     }
@@ -233,7 +224,7 @@ public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
 
     public void destroy() {
         if (serviceBound) {
-            scrcpy.StopService();
+            scrcpy.stop();
             context.unbindService(serviceConnection);
             Intent intent = new Intent(context, Scrcpy.class);
             context.stopService(intent);

@@ -12,7 +12,7 @@
     android:paddingRight="0px"
     android:weightSum="1">
 
-    <SurfaceView
+    <com.anonymous.scrcpyx.ScrcpyxView
         android:id="@+id/decoder_surface"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

@@ -1,4 +1,4 @@
-package org.client.scrcpy.model;
+package com.anonymous.scrcpyx.core.model;
 
 import java.nio.ByteBuffer;
 
@@ -7,16 +7,16 @@ import java.nio.ByteBuffer;
  * https://www.github.com/alexmprog/VideoCodec
  */
 
-public class VideoPacket extends MediaPacket {
+public class AudioPacket extends MediaPacket {
 
     public Flag flag;
     public long presentationTimeStamp;
     public byte[] data;
 
-    public VideoPacket() {
+    public AudioPacket() {
     }
 
-    public VideoPacket(Type type, Flag flag, long presentationTimeStamp, byte[] data) {
+    public AudioPacket(Type type, Flag flag, long presentationTimeStamp, byte[] data) {
         this.type = type;
         this.flag = flag;
         this.presentationTimeStamp = presentationTimeStamp;
@@ -24,8 +24,8 @@ public class VideoPacket extends MediaPacket {
     }
 
     // create packet from byte array
-    public static VideoPacket fromArray(byte[] values) {
-        VideoPacket videoPacket = new VideoPacket();
+    public static AudioPacket fromArray(byte[] values) {
+        AudioPacket videoPacket = new AudioPacket();
 
         // should be a type value - 1 byte
         byte typeValue = values[0];
@@ -49,28 +49,28 @@ public class VideoPacket extends MediaPacket {
         return videoPacket;
     }
 
-    public static VideoPacket parsePts(long pts) {
+    public static AudioPacket parsePts(long pts) {
         final long PACKET_FLAG_CONFIG = 1L << 63;
         final long PACKET_FLAG_KEY_FRAME = 1L << 62;
-        VideoPacket videoPacket = new VideoPacket();
+        AudioPacket audioPacket = new AudioPacket();
 
-        videoPacket.type = Type.VIDEO;
+        audioPacket.type = Type.AUDIO;
 
         if (pts == PACKET_FLAG_CONFIG) {
-            videoPacket.flag = Flag.CONFIG;
+            audioPacket.flag = AudioPacket.Flag.CONFIG;
         } else if ((pts & PACKET_FLAG_KEY_FRAME) != 0) {
-            videoPacket.flag = Flag.KEY_FRAME;
+            audioPacket.flag = AudioPacket.Flag.KEY_FRAME;
             pts &= ~PACKET_FLAG_KEY_FRAME;
         } else {
-            videoPacket.flag = Flag.FRAME;
+            audioPacket.flag = AudioPacket.Flag.FRAME;
         }
-        videoPacket.presentationTimeStamp = pts;
+        audioPacket.presentationTimeStamp = pts;
 
-        return videoPacket;
+        return audioPacket;
     }
 
-    public static VideoPacket readHead(byte[] values) {
-        VideoPacket videoPacket = new VideoPacket();
+    public static AudioPacket readHead(byte[] values) {
+        AudioPacket videoPacket = new AudioPacket();
 
         // should be a type value - 1 byte
         byte typeValue = values[0];
@@ -78,7 +78,7 @@ public class VideoPacket extends MediaPacket {
         byte flagValue = values[1];
 
         videoPacket.type = Type.getType(typeValue);
-        videoPacket.flag = VideoPacket.Flag.getFlag(flagValue);
+        videoPacket.flag = Flag.getFlag(flagValue);
 
         // should be 8 bytes for timestamp
         byte[] timeStamp = new byte[8];

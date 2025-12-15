@@ -17,7 +17,7 @@
         android:usesCleartextTraffic="true">
 
         <service
-            android:name=".Scrcpy"
+            android:name="com.anonymous.scrcpyx.core.scrcpyx.Scrcpy"
             android:enabled="true"
             android:exported="true"></service>
         <service android:name=".FloatService" />

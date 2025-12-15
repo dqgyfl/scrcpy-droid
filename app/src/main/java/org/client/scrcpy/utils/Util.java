@@ -1,25 +1,21 @@
 package org.client.scrcpy.utils;
 
 import android.content.res.Resources;
-import android.graphics.Bitmap;
 import android.text.TextUtils;
 import android.util.TypedValue;
 
-import org.client.scrcpy.Scrcpy;
-
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.util.Hashtable;
 import java.util.Map;
 
 public class Util {
 
     public static String[] getServerHostAndPort(String serverAdr) {
         if (TextUtils.isEmpty(serverAdr)) {
-            return new String[]{"127.0.0.1", String.valueOf(Scrcpy.DEFAULT_ADB_PORT)};
+            return new String[]{"127.0.0.1", String.valueOf(5555)};
         }
         String serverHost = serverAdr;
-        String serverPort = String.valueOf(Scrcpy.DEFAULT_ADB_PORT);
+        String serverPort = String.valueOf(5555);
         if (serverAdr.contains(":")) {
             int lastIndex = serverAdr.lastIndexOf(":");
 

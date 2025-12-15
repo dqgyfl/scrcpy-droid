@@ -1,14 +1,38 @@
 apply plugin: 'com.android.library'
+apply plugin: 'com.google.protobuf'
 apply plugin: 'maven-publish'
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.25.8"
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.77.0'
+        }
+    }
+
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                java { option 'lite' }
+            }
+            task.plugins {
+                grpc { option 'lite' }
+            }
+        }
+    }
+}
+
 android {
-    namespace 'com.genymobile.scrcpy'
+    namespace 'com.anonymous.scrcypx'
 
     compileSdk = 36
     defaultConfig {
         minSdkVersion 23
         targetSdkVersion 35
         versionCode 3
-        versionName "1.0.0-SNAPSHOT"
+        versionName "1.0.1-SNAPSHOT"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
 
@@ -22,6 +46,7 @@ android {
             minifyEnabled false
         }
     }
+
     publishing {
         singleVariant("release") {
             withSourcesJar()
@@ -29,9 +54,6 @@ android {
     }
 }
 
-dependencies {
-    testImplementation 'junit:junit:4.13.2'
-}
 afterEvaluate {
     publishing {
         publications {
@@ -55,8 +77,25 @@ afterEvaluate {
                     username = "admin"
                     password = "admin"
                 }
+//                mavenContent {
+//                    snapshotsOnly()
+//                }
             }
         }
     }
+}
+
+dependencies {
+    implementation project(":scrcpy-api")
+
+    implementation 'io.grpc:grpc-okhttp:1.77.0'
+    implementation 'io.grpc:grpc-protobuf-lite:1.77.0'
+    implementation 'io.grpc:grpc-stub:1.77.0'
+
+    testImplementation 'junit:junit:4.13.2'
+}
+
+configurations.configureEach {
+    resolutionStrategy.cacheDynamicVersionsFor 10, 'seconds'
 }
 

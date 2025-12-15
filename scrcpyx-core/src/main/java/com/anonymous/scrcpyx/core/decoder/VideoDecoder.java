@@ -1,4 +1,4 @@
-package org.client.scrcpy.decoder;
+package com.anonymous.scrcpyx.core.decoder;
 
 import android.media.MediaCodec;
 import android.media.MediaFormat;

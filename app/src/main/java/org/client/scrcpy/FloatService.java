@@ -127,7 +127,8 @@ public class FloatService extends Service {
         displayWindow.setOnDisplayTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View view, MotionEvent motionEvent) {
-                return scrcpyHost.touch(motionEvent, displayWindow.getSurfaceWidth(), displayWindow.getSurfaceHeight());
+//                return scrcpyHost.touch(motionEvent, displayWindow.getSurfaceWidth(), displayWindow.getSurfaceHeight());
+                return false;
             }
         });
     }

@@ -1,4 +1,4 @@
-package org.client.scrcpy.model;
+package com.anonymous.scrcpyx.core.model;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;

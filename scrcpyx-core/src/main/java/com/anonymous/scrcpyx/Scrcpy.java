@@ -1,4 +1,4 @@
-package org.client.scrcpy;
+package com.anonymous.scrcpyx;
 
 import android.app.Service;
 import android.content.Intent;
@@ -8,16 +8,18 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Surface;
-import com.anonymous.scrcypx.mgr.v1.ProxyClient;
+import com.anonymous.scrcpyx.core.codec.ControlCodec;
+import com.anonymous.scrcpyx.core.decoder.AudioDecoder;
+import com.anonymous.scrcpyx.core.decoder.VideoDecoder;
+import com.anonymous.scrcpyx.core.model.AudioPacket;
+import com.anonymous.scrcpyx.core.model.VideoPacket;
+import com.anonymous.scrcpyx.mgr.MgrClient;
+import com.anonymous.scrcpyx.mgr.ProxyClient;
 import com.genymobile.scrcpy.Options;
 import com.genymobile.scrcpy.control.ControlMessage;
 import com.genymobile.scrcpy.device.Position;
-import org.client.scrcpy.codec.ControlCodec;
-import org.client.scrcpy.decoder.AudioDecoder;
-import org.client.scrcpy.decoder.VideoDecoder;
-import org.client.scrcpy.model.AudioPacket;
-import org.client.scrcpy.model.VideoPacket;
-import org.client.scrcpy.utils.Util;
+import scrcpyx.mgr.v1.StartScrcpyServerRequest;
+import scrcpyx.mgr.v1.StartScrcpyServerResponse;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -34,102 +36,51 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Scrcpy extends Service {
 
-    public static final String LOCAL_IP = "127.0.0.1";
-    // 本地画面转发占用的端口
-    public static final int LOCAL_FORWART_PORT = 7008;
-
-    public static final int DEFAULT_ADB_PORT = 5555;
-    private String serverHost;
-    private int serverPort = DEFAULT_ADB_PORT;
-    private Surface surface;
-    private int screenWidth;
-    private int screenHeight;
-
-    private final BlockingQueue<byte[]> event = new LinkedBlockingQueue<>();
-    // private byte[] event = null;
-    private VideoDecoder videoDecoder;
-    private AudioDecoder audioDecoder;
-    private final AtomicBoolean updateAvailable = new AtomicBoolean(true);
-    private final IBinder mBinder = new MyServiceBinder();
-    private boolean needRotate = false;
-
-    private final AtomicBoolean LetServceRunning = new AtomicBoolean(true);
+    private Options options;
     private ServiceCallbacks serviceCallbacks;
-    private final int[] remote_dev_resolution = new int[2];
+
+    private final AtomicBoolean running = new AtomicBoolean(true);
+    private final AtomicBoolean hasUpdate = new AtomicBoolean(true);
+    private final AtomicBoolean connected = new AtomicBoolean(false);
+
+
+    private VideoDecoder videoDecoder = new VideoDecoder();
+    private final AtomicInteger decoderSignal = new AtomicInteger(0);
+    private Surface surface;
     // width, height
     private final int[] videoHeader = new int[2];
-    private boolean socket_status = false;
-
-    private Options options;
     // currently used for signal video size change
-    private AtomicInteger decoderSignal = new AtomicInteger(0);
+    private AudioDecoder audioDecoder = new AudioDecoder();
+    private final BlockingQueue<byte[]> event = new LinkedBlockingQueue<>();
 
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return mBinder;
-    }
-
-    public void setServiceCallbacks(ServiceCallbacks callbacks) {
+    public void start(String serverAdr, String did, String app, List<String> args, ServiceCallbacks callbacks) {
+        String[] serverInfo = serverAdr.split(":");
+        String serverHost = serverInfo[0];
+        int serverPort = serverInfo.length == 2 ? Integer.parseInt(serverInfo[1]) : 443;
+        options = Options.parse(args.toArray(new String[0]));
         serviceCallbacks = callbacks;
-    }
 
-    public void setParms(Surface NewSurface, int NewWidth, int NewHeight) {
-        this.screenWidth = NewWidth;
-        this.screenHeight = NewHeight;
-        this.surface = NewSurface;
+        running.set(true);
+        hasUpdate.set(true);
+        connected.set(false);
 
         videoDecoder.start(decoderSignal);
         audioDecoder.start();
 
-
-        updateAvailable.set(true);
-
-    }
-
-    public static class SimpleChannel extends Binder {
-        private Socket socket;
-        private int chType;
-        private String chName;
-        private DataInputStream in;
-        private DataOutputStream out;
-
-        public void waitReady() throws IOException {
-            int attempts = 5;
-            int waitResolutionCount = 10;
-            while (in.available() <= 0 && waitResolutionCount > 0) {
-                waitResolutionCount--;
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException ignore) {
-                }
-            }
-            if (in.available() <= 0) {
-                throw new IOException("can't read socket Resolution : " + attempts);
-            }
-        }
-    }
-
-    public void start(Surface surface, String serverAdr, int screenHeight, int screenWidth, int delay, String app, List<String> args) {
-        this.videoDecoder = new VideoDecoder();
         videoDecoder.start(decoderSignal);
-
-        this.audioDecoder = new AudioDecoder();
-        audioDecoder.start();
-
-        String[] serverInfo = Util.getServerHostAndPort(serverAdr);
-        this.serverHost = serverInfo[0];
-        this.serverPort = Integer.parseInt(serverInfo[1]);
-
-        this.screenHeight = screenHeight;
-        this.screenWidth = screenWidth;
         this.surface = surface;
+        audioDecoder.start();
+
         Thread thread = new Thread(() -> {
             // video, audio, control
             SimpleChannel[] chs = {null, null, null};
             // scrcpy client args + scrcpy server args, currently only server args
-            this.options = Options.parse(args.toArray(new String[0]));
             try {
+                StartScrcpyServerResponse rsp = MgrClient.getClient().startScrcpyServer(StartScrcpyServerRequest.newBuilder()
+                        .setDid(did)
+                        .addAllArgs(args)
+                        .build());
                 // wait server startup
                 Thread.sleep(500);
                 String[] s = {
@@ -145,7 +96,7 @@ public class Scrcpy extends Service {
                     SimpleChannel ch = new SimpleChannel();
                     ch.chName = s[i];
                     ch.chType = i;
-                    ch.socket = ProxyClient.connect(serverHost, serverPort, SendCommands.session_id);
+                    ch.socket = ProxyClient.connect(serverHost, serverPort, rsp.getSessionId());
                     ch.in = new DataInputStream(ch.socket.getInputStream());
                     ch.out = new DataOutputStream(ch.socket.getOutputStream());
                     chs[i] = ch;
@@ -163,36 +114,18 @@ public class Scrcpy extends Service {
                 }
 
                 // move this into video handling
-                socket_status = true;
-                List<Callable<String>> tasks = new ArrayList<>();
-                for (SimpleChannel ch : chs) {
-                    if (ch == null || ch.socket == null) {
-                        continue;
-                    }
-                    tasks.add(() -> {
-                        try {
-                            loop(ch.in, ch.out, delay, ch.chType);
-                        } catch (InterruptedException | IOException ignored) {
-                            LetServceRunning.set(false);
-                        } finally {
-                            try {
-                                ch.socket.close();
-                            } catch (IOException ignored) {
-                            }
-                        }
-                        Log.e("Scrcpy", ch.chName + " stoped");
-                        return "";
-                    });
-                }
+                connected.set(true);
+                ;
+                List<Callable<String>> tasks = createTasks(chs);
 
                 SimpleChannel control = chs[2];
                 if (control != null) {
                     Thread.sleep(500);
                     // -S, --turn-screen-off
-                    control.out.write(ControlCodec.encode(ControlMessage.createSetDisplayPower(false)));
+                    sendEvent(ControlMessage.createSetDisplayPower(false));
                     // --start-app
                     if (app != null && !app.isBlank()) {
-                        control.out.write(ControlCodec.encode(ControlMessage.createStartApp(app)));
+                        sendEvent(ControlMessage.createStartApp(app));
                     }
                 }
                 try (ExecutorService executor = Executors.newFixedThreadPool(3)) {
@@ -216,86 +149,54 @@ public class Scrcpy extends Service {
         thread.start();
     }
 
-    public void pause() {
-        if (videoDecoder != null) {
-            videoDecoder.stop();
+    private List<Callable<String>> createTasks(SimpleChannel[] chs) {
+        List<Callable<String>> tasks = new ArrayList<>();
+        for (SimpleChannel ch : chs) {
+            if (ch == null || ch.socket == null) {
+                continue;
+            }
+            tasks.add(() -> {
+                try {
+                    loop(ch.in, ch.out, ch.chType);
+                } finally {
+                    running.set(false);
+                    try {
+                        ch.socket.close();
+                    } catch (IOException ignored) {
+                    }
+                }
+                Log.e("Scrcpy", ch.chName + " stopped");
+                return "";
+            });
         }
-
-        if (audioDecoder != null) {
-            audioDecoder.stop();
-        }
+        return tasks;
     }
 
-    public void resume() {
-        if (videoDecoder != null) {
-            videoDecoder.start(decoderSignal);
-        }
-        if (audioDecoder != null) {
-            audioDecoder.start();
-        }
-        updateAvailable.set(true);
+    public boolean isConnected() {
+        return connected.get();
     }
 
-    public void StopService() {
-        LetServceRunning.set(false);
-        if (videoDecoder != null) {
-            videoDecoder.stop();
-        }
-        if (audioDecoder != null) {
-            audioDecoder.stop();
-        }
-        stopSelf();
+    public void stop() {
+        videoDecoder.stop();
+        audioDecoder.stop();
+        running.set(false);
     }
 
+    public void attachSurface(Surface NewSurface) {
+        this.surface = NewSurface;
+        videoDecoder.start(decoderSignal);
+        hasUpdate.set(true);
+    }
 
-    public boolean touchevent(MotionEvent touch_event, boolean landscape, int displayW, int displayH) {
-        float remoteW;
-        float remoteH;
-        float realH;
-        float realW;
+    public void detachSurface() {
+        this.surface = null;
+        videoDecoder.stop();
+    }
 
-        if (landscape) {  // 横屏的话，宽高相反
-            remoteW = Math.max(remote_dev_resolution[0], remote_dev_resolution[1]);
-            remoteH = Math.min(remote_dev_resolution[0], remote_dev_resolution[1]);
-
-            realW = Math.min(remoteW, screenWidth);
-            realH = realW * remoteH / remoteW;
-        } else {
-            remoteW = Math.min(remote_dev_resolution[0], remote_dev_resolution[1]);
-            remoteH = Math.max(remote_dev_resolution[0], remote_dev_resolution[1]);
-            realH = Math.min(remoteH, screenHeight);
-            realW = realH * remoteW / remoteH;
-        }
-
-        int actionIndex = touch_event.getActionIndex();
+    public void sendTouchEvent(MotionEvent touch_event, int idx, int w, int h) {
         if (touch_event.getPointerCount() != 1) {
-            return true;
+            return;
         }
-        int pointerId = touch_event.getPointerId(actionIndex);
-        int pointCount = touch_event.getPointerCount();
-        // Log.e("Scrcpy", "pointer id: " + pointerId + " , action: " + touch_event.getAction() + " ,point count: " + pointCount + " x: " + touch_event.getX() + " y: " + touch_event.getY());
-
-
-        switch (touch_event.getActionMasked()) {
-//            case MotionEvent.ACTION_MOVE: // 所有手指移动
-//                // 遍历所有触摸点，使用 pointerId 和 pointerIndex 来获取所有触摸点的信息
-//                for (int i = 0; i < touch_event.getPointerCount(); i++) {
-//                    sendTouchEvent(touch_event, i, displayW, displayH);
-//                }
-//                break;
-//            case MotionEvent.ACTION_POINTER_UP: // 中间手指抬起
-//            case MotionEvent.ACTION_UP: // 最后一个手指抬起
-//            case MotionEvent.ACTION_DOWN: // 第一个手指按下
-//            case MotionEvent.ACTION_POINTER_DOWN: // 中间的手指按下
-            default:
-                sendTouchEvent(touch_event, actionIndex, displayW, displayH);
-                break;
-
-        }
-        return true;
-    }
-
-    private void sendTouchEvent(MotionEvent touch_event, int idx, int w, int h) {
         int ww = videoHeader[0];
         int hh = videoHeader[1];
         if ((w > h) != (ww > hh)) { // in second display it seems video width and height not correct
@@ -314,58 +215,23 @@ public class Scrcpy extends Service {
         event.offer(ControlCodec.encode(msg));
     }
 
-    private void sendTouchEvent(int action, int buttonState, int x, int y, int pointerId) {
-        // 为支持多点触控，将 pointid 添加到最末尾
-        // TODO : 后续需要改造 event 传输方式
-        int[] buf = new int[]{action, buttonState, x, y, pointerId};
-        final byte[] array = new byte[buf.length * 4]; // https://stackoverflow.com/questions/2183240/java-integer-to-byte-array
-        for (int j = 0; j < buf.length; j++) {
-            final int c = buf[j];
-            array[j * 4] = (byte) ((c & 0xFF000000) >> 24);
-            array[j * 4 + 1] = (byte) ((c & 0xFF0000) >> 16);
-            array[j * 4 + 2] = (byte) ((c & 0xFF00) >> 8);
-            array[j * 4 + 3] = (byte) (c & 0xFF);
-        }
-        if (LetServceRunning.get()) {
-            event.offer(array);
-        }
-        // event = array;
+    public void sendEvent(ControlMessage msg) {
+        event.offer(ControlCodec.encode(msg));
     }
 
-    public int[] get_remote_device_resolution() {
-        return remote_dev_resolution;
-    }
-
-    public boolean check_socket_connection() {
-        return socket_status;
-    }
-
-    public void sendKeyevent(int keycode) {
-        int[] buf = new int[]{keycode};
-
-        final byte[] array = new byte[buf.length * 4];   // https://stackoverflow.com/questions/2183240/java-integer-to-byte-array
-        for (int j = 0; j < buf.length; j++) {
-            final int c = buf[j];
-            array[j * 4] = (byte) ((c & 0xFF000000) >> 24);
-            array[j * 4 + 1] = (byte) ((c & 0xFF0000) >> 16);
-            array[j * 4 + 2] = (byte) ((c & 0xFF00) >> 8);
-            array[j * 4 + 3] = (byte) (c & 0xFF);
-        }
-        if (LetServceRunning.get()) {
+    public void sendKeyEvent(int keycode) {
+        if (running.get()) {
             event.offer(ControlCodec.encode(ControlMessage.createInjectKeycode(
                     KeyEvent.ACTION_DOWN, keycode, 0, 0
             )));
             try {
-                // remote his
+                // remote this
                 Thread.sleep(100);
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
             }
             event.offer(ControlCodec.encode(ControlMessage.createInjectKeycode(
                     KeyEvent.ACTION_UP, keycode, 0, 0
             )));
-//            event.offer(array);
-            // event = array;
         }
     }
 
@@ -376,12 +242,14 @@ public class Scrcpy extends Service {
         )));
     }
 
-    private void loop(DataInputStream dataInputStream, DataOutputStream dataOutputStream, int delay, int chType) throws InterruptedException, IOException {
+    private void loop(DataInputStream dataInputStream, DataOutputStream dataOutputStream, int chType) throws InterruptedException, IOException {
+        boolean needRotate = false;
         if (chType == 0) {
             byte[] buf = new byte[8];
             dataInputStream.readFully(buf, 0, 4);
-            String codec = new String(buf, 0, 4, java.nio.charset.StandardCharsets.US_ASCII);
+            String codec = new String(buf, 0, 4, StandardCharsets.US_ASCII);
             dataInputStream.readFully(buf, 0, 8);
+            final int[] remote_dev_resolution = new int[2];
             for (int i = 0; i < remote_dev_resolution.length; i++) {
                 remote_dev_resolution[i] = (((int) (buf[i * 4]) << 24) & 0xFF000000) |
                         (((int) (buf[i * 4 + 1]) << 16) & 0xFF0000) |
@@ -400,12 +268,12 @@ public class Scrcpy extends Service {
         } else if (chType == 1) {
             byte[] buf = new byte[4];
             dataInputStream.readFully(buf);
-            String codec = new String(buf, java.nio.charset.StandardCharsets.US_ASCII);
+            String codec = new String(buf, StandardCharsets.US_ASCII);
             Log.e("Scrcpy", "audio codec :" + codec);
         }
 
         VideoPacket.StreamSettings streamSettings = null;
-        while (LetServceRunning.get()) {
+        while (running.get()) {
             if (chType == 2) {
                 byte[] sendevent = event.poll(3, TimeUnit.SECONDS);
                 if (sendevent != null) {
@@ -427,6 +295,7 @@ public class Scrcpy extends Service {
                     if (streamSettings != null) {
                         // force rotate screen if already configured
                         needRotate = true;
+                        hasUpdate.set(true);
                     }
                     streamSettings = VideoPacket.getStreamSettings(packet);
                 } else if (videoPacket.flag == VideoPacket.Flag.END) {
@@ -443,15 +312,15 @@ public class Scrcpy extends Service {
                     needRotate = false;
 
                     // not sure whether this is safe, loadNewRotation always reset this?
-                    updateAvailable.set(false);
+                    hasUpdate.set(false);
                     serviceCallbacks.loadNewRotation();
-                    while (!updateAvailable.get()) {
+                    while (!hasUpdate.get()) {
                         Thread.sleep(100);
                     }
                 }
-                if (updateAvailable.get() && streamSettings != null) {
-                    updateAvailable.compareAndSet(true, false);
-                    while (!surface.isValid()) {
+                if (hasUpdate.get() && streamSettings != null) {
+                    hasUpdate.compareAndSet(true, false);
+                    while (surface == null || !surface.isValid()) {
                         Thread.sleep(100);
                     }
                     videoDecoder.configure(surface, videoHeader[0], videoHeader[1], streamSettings.sps, streamSettings.pps);
@@ -485,11 +354,40 @@ public class Scrcpy extends Service {
         void errorDisconnect();
     }
 
+    private static class SimpleChannel extends Binder {
+        private Socket socket;
+        private int chType;
+        private String chName;
+        private DataInputStream in;
+        private DataOutputStream out;
+
+        public void waitReady() throws IOException {
+            int attempts = 5;
+            int waitResolutionCount = 10;
+            while (in.available() <= 0 && waitResolutionCount > 0) {
+                waitResolutionCount--;
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException ignore) {
+                }
+            }
+            if (in.available() <= 0) {
+                throw new IOException("can't read socket Resolution : " + attempts);
+            }
+        }
+    }
+
     public class MyServiceBinder extends Binder {
         public Scrcpy getService() {
             return Scrcpy.this;
         }
     }
 
+    @Override
+    public IBinder onBind(Intent intent) {
+        return mBinder;
+    }
+
+    private final IBinder mBinder = new MyServiceBinder();
 
 }

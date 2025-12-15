@@ -2,29 +2,6 @@ evaluationDependsOn(':server')
 
 apply plugin: 'com.android.application'
 
-apply plugin: 'com.google.protobuf'
-
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:3.25.8"
-    }
-    plugins {
-        grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java:1.77.0'
-        }
-    }
-
-    generateProtoTasks {
-        all().forEach { task ->
-            task.builtins {
-                java { option 'lite' }
-            }
-            task.plugins {
-                grpc { option 'lite' }
-            }
-        }
-    }
-}
 
 android {
     namespace 'org.client.scrcpy'
@@ -98,7 +75,7 @@ android {
 
 dependencies {
     implementation project(":scrcpy-api")
-
+    implementation project(":scrcpyx-core")
     implementation 'io.grpc:grpc-okhttp:1.77.0'
     implementation 'io.grpc:grpc-protobuf-lite:1.77.0'
     implementation 'io.grpc:grpc-stub:1.77.0'

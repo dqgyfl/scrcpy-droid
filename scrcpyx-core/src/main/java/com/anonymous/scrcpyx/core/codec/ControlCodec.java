@@ -1,4 +1,4 @@
-package org.client.scrcpy.codec;
+package com.anonymous.scrcpyx.core.codec;
 
 import com.genymobile.scrcpy.control.ControlMessage;
 import com.genymobile.scrcpy.device.Position;

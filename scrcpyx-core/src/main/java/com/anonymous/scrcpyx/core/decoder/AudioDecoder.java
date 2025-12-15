@@ -1,7 +1,6 @@
-package org.client.scrcpy.decoder;
+package com.anonymous.scrcpyx.core.decoder;
 
 import android.media.*;
-import android.os.Build;
 import com.genymobile.scrcpy.Options;
 import com.genymobile.scrcpy.util.CodecOption;
 import com.genymobile.scrcpy.util.CodecUtils;
@@ -177,7 +176,7 @@ public class AudioDecoder {
                                 audioTrack.write(data, 0, info.size);
                             }
                             // release
-                            mCodec.releaseOutputBuffer(index, true);
+                            mCodec.releaseOutputBuffer(index, false);
                         }
                     } else {
                         // just waiting to be configured, then decode and render
