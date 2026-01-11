@@ -59,7 +59,7 @@ public class ScrcpyxView extends SurfaceView implements SurfaceHolder.Callback {
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        Log.e("ScrcpyxView", "surfaceCreated");
+        Log.d("ScrcpyxView", "surfaceCreated");
         scrcpy.attachSurface(getHolder().getSurface());
     }
 

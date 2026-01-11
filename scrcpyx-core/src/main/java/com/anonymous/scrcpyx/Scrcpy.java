@@ -32,25 +32,30 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 public class Scrcpy extends Service {
 
+    private static final int WORKER_CNT = 4;
+
     private Options options;
     private ServiceCallbacks serviceCallbacks;
 
-    private final AtomicBoolean running = new AtomicBoolean(true);
-    private final AtomicBoolean hasUpdate = new AtomicBoolean(true);
+    private final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicInteger status = new AtomicInteger(0);
+    private final AtomicBoolean hasUpdate = new AtomicBoolean(false);
     private final AtomicBoolean connected = new AtomicBoolean(false);
 
 
-    private VideoDecoder videoDecoder = new VideoDecoder();
+    private final AtomicReference<ExecutorService> workersRef = new AtomicReference<>(null);
+    private final VideoDecoder videoDecoder = new VideoDecoder();
     private final AtomicInteger decoderSignal = new AtomicInteger(0);
     private Surface surface;
     // width, height
     private final int[] videoHeader = new int[2];
     // currently used for signal video size change
-    private AudioDecoder audioDecoder = new AudioDecoder();
+    private final AudioDecoder audioDecoder = new AudioDecoder();
     private final BlockingQueue<byte[]> event = new LinkedBlockingQueue<>();
 
 
@@ -61,28 +66,25 @@ public class Scrcpy extends Service {
         options = Options.parse(args.toArray(new String[0]));
         serviceCallbacks = callbacks;
 
-        running.set(true);
-        hasUpdate.set(true);
-        connected.set(false);
+        ExecutorService workers = Executors.newFixedThreadPool(WORKER_CNT);
+        ExecutorService oldWorkers = workersRef.getAndSet(workers);
+        if (oldWorkers != null) {
+            oldWorkers.shutdownNow();
+        }
 
-        videoDecoder.start(decoderSignal);
-        audioDecoder.start();
-
-        videoDecoder.start(decoderSignal);
-        this.surface = surface;
-        audioDecoder.start();
-
-        Thread thread = new Thread(() -> {
+        Log.e("ScrcpyxView", String.format("Starting Scrcpyx Server at %s %s %s %s", serverAdr, did, app, args));
+        workers.submit(() -> {
             // video, audio, control
             SimpleChannel[] chs = {null, null, null};
             // scrcpy client args + scrcpy server args, currently only server args
             try {
+                MgrClient.setServer(serverAdr);
                 StartScrcpyServerResponse rsp = MgrClient.getClient().startScrcpyServer(StartScrcpyServerRequest.newBuilder()
                         .setDid(did)
                         .addAllArgs(args)
                         .build());
                 // wait server startup
-                Thread.sleep(500);
+                Thread.sleep(1000);
                 String[] s = {
                         this.options.getVideo() ? "video" : null,
                         this.options.getAudio() ? "audio" : null,
@@ -114,9 +116,13 @@ public class Scrcpy extends Service {
                 }
 
                 // move this into video handling
+                running.set(true);
                 connected.set(true);
-                ;
+                hasUpdate.set(true);
+
                 List<Callable<String>> tasks = createTasks(chs);
+                videoDecoder.start(decoderSignal);
+                audioDecoder.start();
 
                 SimpleChannel control = chs[2];
                 if (control != null) {
@@ -128,10 +134,14 @@ public class Scrcpy extends Service {
                         sendEvent(ControlMessage.createStartApp(app));
                     }
                 }
-                try (ExecutorService executor = Executors.newFixedThreadPool(3)) {
-                    executor.invokeAny(tasks);
-                }
+
+                workers.invokeAny(tasks);
             } catch (Exception e) {
+                Log.e("Scrcpy", "error" + e.getMessage());
+                if (serviceCallbacks != null) {
+                    serviceCallbacks.errorDisconnect();
+                }
+            } finally {
                 for (SimpleChannel ch : chs) {
                     if (ch == null || ch.socket == null) {
                         continue;
@@ -141,12 +151,20 @@ public class Scrcpy extends Service {
                     } catch (IOException ignored) {
                     }
                 }
-                if (serviceCallbacks != null) {
-                    serviceCallbacks.errorDisconnect();
-                }
+                workers.shutdownNow();
+                workersRef.compareAndSet(workers, null);
             }
         });
-        thread.start();
+    }
+
+    public void stop() {
+        ExecutorService es = workersRef.getAndSet(null);
+        if (es != null) {
+            es.shutdownNow();
+        }
+        videoDecoder.stop();
+        audioDecoder.stop();
+        running.set(false);
     }
 
     private List<Callable<String>> createTasks(SimpleChannel[] chs) {
@@ -157,15 +175,11 @@ public class Scrcpy extends Service {
             }
             tasks.add(() -> {
                 try {
+                    Log.d("Scrcpy", ch.chName + " started");
                     loop(ch.in, ch.out, ch.chType);
                 } finally {
-                    running.set(false);
-                    try {
-                        ch.socket.close();
-                    } catch (IOException ignored) {
-                    }
+                    Log.d("Scrcpy", ch.chName + " stopped");
                 }
-                Log.e("Scrcpy", ch.chName + " stopped");
                 return "";
             });
         }
@@ -176,24 +190,21 @@ public class Scrcpy extends Service {
         return connected.get();
     }
 
-    public void stop() {
-        videoDecoder.stop();
-        audioDecoder.stop();
-        running.set(false);
-    }
-
     public void attachSurface(Surface NewSurface) {
+        // decoder should manage this before it start
         this.surface = NewSurface;
         videoDecoder.start(decoderSignal);
         hasUpdate.set(true);
     }
 
     public void detachSurface() {
+        // decoder should manage this before it start
         this.surface = null;
         videoDecoder.stop();
     }
 
     public void sendTouchEvent(MotionEvent touch_event, int idx, int w, int h) {
+        Log.e("ScrcpyxView", String.format("sendTouchEvent (%s,%s) [%sx%s]", touch_event.getX(), touch_event.getY(), w, h));
         if (touch_event.getPointerCount() != 1) {
             return;
         }
@@ -291,6 +302,7 @@ public class Scrcpy extends Service {
             dataInputStream.readFully(packet);
             if (chType == 0) {
                 VideoPacket videoPacket = VideoPacket.parsePts(pts);
+                videoPacket.presentationTimeStamp = 0;
                 if (videoPacket.flag == VideoPacket.Flag.CONFIG) {
                     if (streamSettings != null) {
                         // force rotate screen if already configured
@@ -334,6 +346,7 @@ public class Scrcpy extends Service {
                 }
             } else if (chType == 1) {
                 AudioPacket audioPacket = AudioPacket.parsePts(pts);
+                audioPacket.presentationTimeStamp = 0;
                 if (audioPacket.flag == AudioPacket.Flag.CONFIG) {
                     audioDecoder.configure(packet, options);
                 } else if (audioPacket.flag == AudioPacket.Flag.END) {

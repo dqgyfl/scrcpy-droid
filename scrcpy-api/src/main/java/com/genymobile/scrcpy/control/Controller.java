@@ -1,5 +1,6 @@
 package com.genymobile.scrcpy.control;
 
+import android.util.Log;
 import com.genymobile.scrcpy.AndroidVersions;
 import com.genymobile.scrcpy.AsyncProcessor;
 import com.genymobile.scrcpy.CleanUp;
@@ -387,7 +388,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
         int targetDisplayId;
         if (displayData != null) {
             point = displayData.positionMapper.map(position);
-            Ln.e("display" + displayData.positionMapper.getVideoSize() + "AAAA" + position.getScreenSize() + "BBBB" + point);
+            Ln.e("display " + displayId + "-" + displayData.positionMapper.getVideoSize() + "-AAAA-" + position.getScreenSize() + "BBBB" + point);
             if (point == null) {
                 if (Ln.isEnabled(Ln.Level.VERBOSE)) {
                     Size eventSize = position.getScreenSize();
@@ -556,6 +557,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
 
     private boolean pressBackOrTurnScreenOn(int action) {
         if (displayId == Device.DISPLAY_ID_NONE || Device.isScreenOn(displayId)) {
+            Ln.e("turn screen on " + displayId);
             return injectKeyEvent(action, KeyEvent.KEYCODE_BACK, 0, 0, Device.INJECT_MODE_ASYNC);
         }
 
