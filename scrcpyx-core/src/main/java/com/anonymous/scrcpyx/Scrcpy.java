@@ -15,6 +15,8 @@ import com.anonymous.scrcpyx.core.model.AudioPacket;
 import com.anonymous.scrcpyx.core.model.VideoPacket;
 import com.anonymous.scrcpyx.mgr.MgrClient;
 import com.anonymous.scrcpyx.mgr.ProxyClient;
+import com.anonymous.scrcpyx.stats.MovingFpsCounter;
+import com.anonymous.scrcpyx.stats.SimpleDelayEstimator;
 import com.genymobile.scrcpy.Options;
 import com.genymobile.scrcpy.control.ControlMessage;
 import com.genymobile.scrcpy.device.Position;
@@ -26,9 +28,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,6 +36,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 
 public class Scrcpy extends Service {
+
+    public static final Scrcpy scrcpy = new Scrcpy();
+    private static ConcurrentMap<String, Scrcpy> sessions = new ConcurrentHashMap<>();
 
     private static final int WORKER_CNT = 4;
 
@@ -57,6 +60,41 @@ public class Scrcpy extends Service {
     // currently used for signal video size change
     private final AudioDecoder audioDecoder = new AudioDecoder();
     private final BlockingQueue<byte[]> event = new LinkedBlockingQueue<>();
+
+
+    // ok to race
+    public SimpleDelayEstimator delayEstimator = new SimpleDelayEstimator();
+    public MovingFpsCounter fpsCounter = new MovingFpsCounter();
+
+    public ScrcpyStats getStatus() {
+        ScrcpyStats stats = new ScrcpyStats();
+        stats.setW(videoHeader[0]);
+        stats.setH(videoHeader[1]);
+        stats.setDelay(delayEstimator.getNetworkDelayMs());
+        stats.setFps((int) fpsCounter.getFps());
+        return stats;
+    }
+
+    public static Scrcpy open(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) {
+            return scrcpy;
+        }
+        Scrcpy scrcpy = new Scrcpy();
+        // compute require api level 24
+        Scrcpy ret = sessions.putIfAbsent(sessionId, scrcpy);
+        if (ret != null) {
+            return ret;
+        }
+        return scrcpy;
+    }
+
+    public static void close(String sessionId) {
+        Scrcpy scrcpy = sessions.remove(sessionId);
+        if (scrcpy != null) {
+            // caller call stop?
+            scrcpy.stop();
+        }
+    }
 
 
     public void start(String serverAdr, String did, String app, List<String> args, ServiceCallbacks callbacks) {
@@ -123,6 +161,8 @@ public class Scrcpy extends Service {
                 List<Callable<String>> tasks = createTasks(chs);
                 videoDecoder.start(decoderSignal);
                 audioDecoder.start();
+                delayEstimator = new SimpleDelayEstimator();
+                fpsCounter = new MovingFpsCounter();
 
                 SimpleChannel control = chs[2];
                 if (control != null) {
@@ -210,10 +250,6 @@ public class Scrcpy extends Service {
         }
         int ww = videoHeader[0];
         int hh = videoHeader[1];
-        if ((w > h) != (ww > hh)) { // in second display it seems video width and height not correct
-            ww = videoHeader[1];
-            hh = videoHeader[0];
-        }
         float xMod = ((float) ww) / w;
         float yMod = ((float) hh) / h;
         ControlMessage msg = ControlMessage.createInjectTouchEvent(
@@ -270,6 +306,7 @@ public class Scrcpy extends Service {
             videoHeader[0] = remote_dev_resolution[0];
             videoHeader[1] = remote_dev_resolution[1];
             Log.e("Scrcpy", String.format("video meta : %s %d-%d", codec, videoHeader[0], videoHeader[1]));
+            // todotodo: remove this
             if (remote_dev_resolution[0] > remote_dev_resolution[1]) {
                 needRotate = true;
                 int i = remote_dev_resolution[0];
@@ -302,12 +339,18 @@ public class Scrcpy extends Service {
             dataInputStream.readFully(packet);
             if (chType == 0) {
                 VideoPacket videoPacket = VideoPacket.parsePts(pts);
+                delayEstimator.onFrameArrived(videoPacket.presentationTimeStamp);
+                fpsCounter.onFrame(videoPacket.presentationTimeStamp);
                 videoPacket.presentationTimeStamp = 0;
                 if (videoPacket.flag == VideoPacket.Flag.CONFIG) {
                     if (streamSettings != null) {
                         // force rotate screen if already configured
                         needRotate = true;
                         hasUpdate.set(true);
+                        int tmp = videoHeader[0];
+                        videoHeader[0] = videoHeader[1];
+                        videoHeader[1] = tmp;
+                        Log.e("Scrcpy", "Video Size Changed: " + Arrays.toString(videoHeader));
                     }
                     streamSettings = VideoPacket.getStreamSettings(packet);
                 } else if (videoPacket.flag == VideoPacket.Flag.END) {
@@ -336,13 +379,6 @@ public class Scrcpy extends Service {
                         Thread.sleep(100);
                     }
                     videoDecoder.configure(surface, videoHeader[0], videoHeader[1], streamSettings.sps, streamSettings.pps);
-                }
-
-                int s = decoderSignal.get();
-                if (s != 0) {
-                    decoderSignal.compareAndSet(s, 0);
-                    videoDecoder.getVideoSize(videoHeader);
-                    Log.e("Scrcpy", "Video Size Changed: " + Arrays.toString(videoHeader));
                 }
             } else if (chType == 1) {
                 AudioPacket audioPacket = AudioPacket.parsePts(pts);

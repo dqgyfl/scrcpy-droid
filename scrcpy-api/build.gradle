@@ -3,6 +3,9 @@ apply plugin: 'maven-publish'
 android {
     namespace 'com.genymobile.scrcpy'
 
+    compileOptions {
+        encoding = "UTF-8"
+    }
     compileSdk = 36
     defaultConfig {
         minSdkVersion 23

@@ -3,6 +3,7 @@ package com.anonymous.scrcpyx.core.decoder;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.os.Build;
+import android.util.Log;
 import android.view.Surface;
 
 
@@ -18,13 +19,23 @@ public class VideoDecoder {
 
     public void decodeSample(byte[] data, int offset, int size, long presentationTimeUs, int flags) {
         if (mWorker != null) {
-            mWorker.decodeSample(data, offset, size, presentationTimeUs, flags);
+            try {
+                mWorker.decodeSample(data, offset, size, presentationTimeUs, flags);
+            } catch (Exception e) {
+                Log.e("Scrcpy", e.toString());
+                mWorker = null;
+            }
         }
     }
 
     public void configure(Surface surface, int width, int height, ByteBuffer csd0, ByteBuffer csd1) {
         if (mWorker != null) {
-            mWorker.configure(surface, width, height, csd0, csd1);
+            try {
+                mWorker.configure(surface, width, height, csd0, csd1);
+            } catch (Exception e) {
+                Log.e("Scrcpy", e.toString());
+                mWorker = null;
+            }
         }
     }
 
